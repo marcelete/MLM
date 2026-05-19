@@ -40,7 +40,7 @@ export default function CheckoutPage() {
   const surcharge = PAYMENT_SURCHARGES[paymentMethod]
 
   useEffect(() => {
-    trackPageView('/checkout', 'Checkout - Eureka Ropa de Trabajo')
+    trackPageView('/checkout', 'Checkout - MLM Ropa de Trabajo')
     if (items.length > 0) {
       trackCheckoutStarted(items, subtotal)
       markCheckoutStarted(items)
@@ -181,6 +181,16 @@ export default function CheckoutPage() {
           orderItems.map((oi) => ({ ...oi, order_id: order.id }))
         )
         if (itemsErr) throw itemsErr
+
+        // Decrement stock for each item
+        for (const item of items) {
+          if (item.variant?.id) {
+            await supabase.rpc('decrement_stock', {
+              variant_id: item.variant.id,
+              qty: item.quantity,
+            })
+          }
+        }
 
         setOrderId(order.id)
         trackCheckoutCompleted(order.id, total, paymentMethod)

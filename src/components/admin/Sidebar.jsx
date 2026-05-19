@@ -11,6 +11,7 @@ import {
   X,
   ExternalLink,
   Package2,
+  TrendingUp,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import toast from 'react-hot-toast'
@@ -22,6 +23,7 @@ const navItems = [
   { to: '/admin/clientes', icon: Users, label: 'Clientes' },
   { to: '/admin/stock', icon: Warehouse, label: 'Stock' },
   { to: '/admin/analiticas', icon: BarChart3, label: 'Analíticas' },
+  { to: '/admin/finanzas', icon: TrendingUp, label: 'Finanzas' },
 ]
 
 export default function Sidebar({ onClose }) {
@@ -47,7 +49,7 @@ export default function Sidebar({ onClose }) {
             <Package2 className="w-4 h-4 text-white" />
           </div>
           <div>
-            <span className="block text-sm font-bold leading-none">Eureka Admin</span>
+            <span className="block text-sm font-bold leading-none">MLM Admin</span>
             <span className="block text-xs text-gray-400 mt-0.5">Panel de control</span>
           </div>
         </div>

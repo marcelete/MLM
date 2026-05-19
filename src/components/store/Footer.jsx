@@ -96,8 +96,8 @@ export default function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-brand-orange flex-shrink-0" />
-                <a href="mailto:info@eureka.com.ar" className="hover:text-brand-orange transition-colors">
-                  info@eureka.com.ar
+                <a href="mailto:info@mlm.com.ar" className="hover:text-brand-orange transition-colors">
+                  info@mlm.com.ar
                 </a>
               </li>
               <li className="flex items-center gap-2">
@@ -116,7 +116,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-white/10 mt-8 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-          <p>© {new Date().getFullYear()} Eureka Ropa de Trabajo. Todos los derechos reservados.</p>
+          <p>© {new Date().getFullYear()} MLM Ropa de Trabajo. Todos los derechos reservados.</p>
           <div className="flex items-center gap-4">
             <img src="https://http2.mlstatic.com/frontend-assets/mp-web-navigation/ui-navigation/5.21.22/mercadopago/logo__large@2x.png" alt="MercadoPago" className="h-5 opacity-60" />
           </div>

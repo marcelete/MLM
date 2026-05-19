@@ -190,6 +190,16 @@ CREATE POLICY "Admins read analytics" ON analytics_events FOR SELECT USING (auth
 CREATE POLICY "Admins read sessions" ON visitor_sessions FOR SELECT USING (auth.role() = 'service_role');
 
 -- ============================================================
+-- STOCK DECREMENT FUNCTION
+-- ============================================================
+CREATE OR REPLACE FUNCTION decrement_stock(variant_id uuid, qty int)
+RETURNS void AS $$
+  UPDATE product_variants
+  SET stock = GREATEST(0, stock - qty)
+  WHERE id = variant_id;
+$$ LANGUAGE sql SECURITY DEFINER;
+
+-- ============================================================
 -- SEED DATA - CATEGORIES
 -- ============================================================
 INSERT INTO categories (name, slug, description, active) VALUES

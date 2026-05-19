@@ -1,64 +1,106 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, ShieldCheck, Truck, MessageCircle, Star, Stethoscope, UtensilsCrossed, GraduationCap } from 'lucide-react'
+import {
+  ArrowRight,
+  MessageCircle,
+  Package,
+  CheckCircle,
+  Banknote,
+  Smartphone,
+  CreditCard,
+  MapPin,
+  Mail,
+} from 'lucide-react'
 import Header from '../../components/store/Header'
 import Footer from '../../components/store/Footer'
 import ProductCard from '../../components/store/ProductCard'
 import CartDrawer from '../../components/store/CartDrawer'
 import { useProducts } from '../../hooks/useProducts'
 import { trackPageView } from '../../lib/analytics'
-import { formatPrice } from '../../data/products'
+import { categories as staticCategories } from '../../data/products'
 
 const WA_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '5491100000000'
 
 const USP_ITEMS = [
   {
-    icon: Truck,
-    title: 'Envíos a CABA y GBA',
+    icon: Package,
+    title: 'Directo del fabricante',
+    desc: 'Sin intermediarios. Precios mayoristas para todos.',
+  },
+  {
+    icon: CheckCircle,
+    title: 'Sin stock mínimo',
+    desc: 'Comprá desde una unidad, sin cantidad mínima.',
+  },
+  {
+    icon: MapPin,
+    title: 'Entrega en CABA',
     desc: 'Despacho dentro de las 48hs hábiles de confirmado el pago.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Calidad garantizada',
-    desc: 'Materiales seleccionados, costuras reforzadas para uso profesional.',
-  },
-  {
-    icon: MessageCircle,
-    title: 'Atención por WhatsApp',
-    desc: 'Respondemos consultas de lunes a sábado de 9 a 20hs.',
   },
 ]
 
-const CATEGORY_CARDS = [
+const PAYMENT_ROWS = [
   {
-    to: '/catalogo?categoria=ambos',
-    icon: Stethoscope,
-    title: 'Ambos Profesionales',
-    desc: 'Salud, limpieza y empresas. Arciel, 8 colores, tallas XS-XXXL.',
-    color: 'bg-blue-600',
+    icon: Banknote,
+    label: 'Efectivo / Transferencia',
+    surcharge: 'Precio base',
+    highlight: true,
   },
   {
-    to: '/catalogo?categoria=delantales',
-    icon: UtensilsCrossed,
-    title: 'Delantales de Cocina',
-    desc: 'Resistentes y prácticos para gastronomía profesional.',
-    color: 'bg-orange-500',
+    icon: Smartphone,
+    label: 'Débito / QR MercadoPago',
+    surcharge: '+10%',
+    highlight: false,
   },
   {
-    to: '/catalogo?categoria=delantales',
-    icon: GraduationCap,
-    title: 'Delantales Docentes',
-    desc: 'Para nivel inicial y primario, diseño clásico.',
-    color: 'bg-teal-600',
+    icon: CreditCard,
+    label: 'Tarjeta de crédito (3 cuotas s/i)',
+    surcharge: '+20%',
+    highlight: false,
+  },
+]
+
+const HOW_TO_BUY = [
+  {
+    step: 1,
+    title: 'Elegí tu producto',
+    desc: 'Seleccioná el uniforme, talle y color que necesitás desde el catálogo.',
+  },
+  {
+    step: 2,
+    title: 'Consultanos o completá el pedido',
+    desc: 'Escribinos por WhatsApp o hacé el pedido directamente desde la tienda.',
+  },
+  {
+    step: 3,
+    title: 'Coordinamos pago y entrega',
+    desc: 'Te confirmamos el pago por el medio que prefieras y coordinamos el envío a tu domicilio.',
   },
 ]
 
 export default function HomePage() {
-  const { data: featured, loading } = useProducts({ featured: true })
+  const { data: allProducts, loading } = useProducts({})
+  const [activeCategory, setActiveCategory] = useState('todos')
 
   useEffect(() => {
-    trackPageView('/', 'Inicio - Eureka Ropa de Trabajo')
+    trackPageView('/', 'MLM | Uniformes y Ropa de Trabajo Profesional')
   }, [])
+
+  const categoryFilters = [
+    { slug: 'todos', label: 'Todos' },
+    ...staticCategories.map((c) => ({ slug: c.slug, label: c.name })),
+  ]
+
+  const filteredProducts =
+    activeCategory === 'todos'
+      ? allProducts
+      : allProducts.filter((p) => {
+          // Support both Supabase (category_id = uuid) and static data (category_id = 'cat-ambos')
+          if (p.categories?.slug) return p.categories.slug === activeCategory
+          // static data: match via category_id
+          const cat = staticCategories.find((c) => c.slug === activeCategory)
+          return cat ? p.category_id === cat.id : true
+        })
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -66,10 +108,10 @@ export default function HomePage() {
       <CartDrawer />
 
       <main className="flex-1 pt-16 lg:pt-20">
-        {/* Hero Section */}
+        {/* ── HERO ── */}
         <section className="relative bg-brand-navy text-white overflow-hidden">
           <div
-            className="absolute inset-0 opacity-20"
+            className="absolute inset-0 opacity-10"
             style={{
               backgroundImage:
                 "url('https://images.unsplash.com/photo-1584515933487-779824d29309?w=1600&q=60')",
@@ -80,19 +122,23 @@ export default function HomePage() {
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
             <div className="max-w-2xl">
               <span className="inline-block bg-brand-orange/20 text-brand-orange text-sm font-semibold px-3 py-1.5 rounded-full mb-4">
-                Ropa profesional para Argentina 🇦🇷
+                Fabricante en Argentina
               </span>
-              <h1 className="text-4xl lg:text-6xl font-extrabold leading-tight text-balance">
-                Uniformes de trabajo
-                <span className="block text-brand-orange">para profesionales</span>
+              <h1 className="text-4xl lg:text-6xl font-extrabold leading-tight">
+                Uniformes profesionales
+                <span className="block text-brand-orange">directos del fabricante</span>
               </h1>
               <p className="mt-5 text-lg text-gray-300 leading-relaxed max-w-xl">
-                Ambos para salud y limpieza, delantales docentes y de cocina. Alta calidad, precios accesibles y envíos a toda CABA y GBA.
+                Ambos, delantales y ropa de trabajo de calidad para salud, limpieza y gastronomía.
+                Envíos a toda CABA.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                <Link to="/catalogo" className="btn-primary inline-flex items-center justify-center gap-2">
-                  Ver catálogo <ArrowRight className="w-4 h-4" />
-                </Link>
+                <a
+                  href="#productos"
+                  className="btn-primary inline-flex items-center justify-center gap-2"
+                >
+                  Ver productos <ArrowRight className="w-4 h-4" />
+                </a>
                 <a
                   href={`https://wa.me/${WA_NUMBER}?text=Hola! Quiero consultar sobre los uniformes`}
                   target="_blank"
@@ -105,7 +151,6 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-          {/* Wave */}
           <div className="absolute bottom-0 left-0 right-0">
             <svg viewBox="0 0 1440 60" className="w-full h-8 lg:h-12 fill-white" preserveAspectRatio="none">
               <path d="M0,60 C360,0 1080,0 1440,60 L1440,60 L0,60 Z" />
@@ -113,7 +158,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* USP Bar */}
+        {/* ── USPs BAR ── */}
         <section className="py-10 bg-white border-b border-gray-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -132,61 +177,35 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Category Cards */}
-        <section className="py-14 bg-gray-50">
+        {/* ── CATALOG SECTION ── */}
+        <section id="productos" className="py-14 bg-gray-50 scroll-mt-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl lg:text-3xl font-bold text-brand-navy text-center mb-2">
-              Nuestras categorías
-            </h2>
-            <p className="text-gray-500 text-center mb-8">
-              Encontrá la prenda ideal para cada industria y rol
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {CATEGORY_CARDS.map(({ to, icon: Icon, title, desc, color }) => (
-                <Link
-                  key={title}
-                  to={to}
-                  className="group block rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow bg-white"
+            <div className="text-center mb-8">
+              <h2 className="text-2xl lg:text-3xl font-bold text-brand-navy">Nuestros productos</h2>
+              <p className="text-gray-500 mt-1">Ropa de trabajo de calidad, sin stock mínimo</p>
+            </div>
+
+            {/* Category filters */}
+            <div className="flex flex-wrap gap-2 justify-center mb-8">
+              {categoryFilters.map((cat) => (
+                <button
+                  key={cat.slug}
+                  onClick={() => setActiveCategory(cat.slug)}
+                  className={`px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
+                    activeCategory === cat.slug
+                      ? 'bg-brand-navy text-white shadow-sm'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:border-brand-navy hover:text-brand-navy'
+                  }`}
                 >
-                  <div className={`${color} h-32 flex items-center justify-center`}>
-                    <Icon className="w-14 h-14 text-white opacity-90 group-hover:scale-110 transition-transform duration-300" />
-                  </div>
-                  <div className="p-5">
-                    <h3 className="font-bold text-gray-900 group-hover:text-brand-navy transition-colors">
-                      {title}
-                    </h3>
-                    <p className="text-sm text-gray-500 mt-1">{desc}</p>
-                    <span className="text-brand-orange text-sm font-semibold mt-3 inline-flex items-center gap-1 group-hover:gap-2 transition-all">
-                      Ver productos <ArrowRight className="w-4 h-4" />
-                    </span>
-                  </div>
-                </Link>
+                  {cat.label}
+                </button>
               ))}
             </div>
-          </div>
-        </section>
 
-        {/* Featured Products */}
-        <section className="py-14 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h2 className="text-2xl lg:text-3xl font-bold text-brand-navy">
-                  Productos destacados
-                </h2>
-                <p className="text-gray-500 mt-1">Los más buscados por nuestros clientes</p>
-              </div>
-              <Link
-                to="/catalogo"
-                className="hidden sm:flex items-center gap-1 text-brand-orange font-semibold hover:text-brand-orangeDark transition-colors text-sm"
-              >
-                Ver todos <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
+            {/* Product grid */}
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {[1, 2, 3, 4].map((n) => (
+                {[1, 2, 3, 4, 5, 6].map((n) => (
                   <div key={n} className="rounded-xl overflow-hidden">
                     <div className="skeleton aspect-square" />
                     <div className="p-4 space-y-2">
@@ -197,113 +216,95 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-16 text-gray-400">
+                <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>No hay productos en esta categoría.</p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {featured.map((product) => (
+                {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
             )}
+          </div>
+        </section>
 
-            <div className="mt-8 text-center sm:hidden">
-              <Link to="/catalogo" className="btn-outline inline-flex items-center gap-2">
-                Ver todo el catálogo <ArrowRight className="w-4 h-4" />
-              </Link>
+        {/* ── HOW TO BUY ── */}
+        <section className="py-14 bg-white">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 className="text-2xl lg:text-3xl font-bold text-brand-navy mb-2">¿Cómo comprar?</h2>
+            <p className="text-gray-500 mb-10">Simple y sin complicaciones</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {HOW_TO_BUY.map(({ step, title, desc }) => (
+                <div key={step} className="flex flex-col items-center text-center">
+                  <div className="w-14 h-14 rounded-full bg-brand-orange text-white text-xl font-extrabold flex items-center justify-center mb-4 shadow-md">
+                    {step}
+                  </div>
+                  <h3 className="font-bold text-gray-900 mb-1">{title}</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* Pricing highlight */}
+        {/* ── PAYMENT METHODS ── */}
         <section className="py-14 bg-brand-navy text-white">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-2xl lg:text-3xl font-bold mb-3">
-              Precios transparentes según tu forma de pago
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl lg:text-3xl font-bold text-center mb-2">
+              Formas de pago
             </h2>
-            <p className="text-gray-300 text-lg mb-8">
-              Los precios publicados son para efectivo y transferencia. Conocé los valores para cada método.
+            <p className="text-gray-300 text-center mb-8">
+              Los precios publicados son para efectivo y transferencia.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                { label: 'Efectivo / Transferencia', pct: 'Sin recargo', highlight: true },
-                { label: 'Débito / QR MercadoPago', pct: '+10%', highlight: false },
-                { label: 'Crédito 3 cuotas s/i', pct: '+20%', highlight: false },
-              ].map(({ label, pct, highlight }) => (
+            <div className="space-y-3">
+              {PAYMENT_ROWS.map(({ icon: Icon, label, surcharge, highlight }) => (
                 <div
                   key={label}
-                  className={`rounded-xl p-5 ${
+                  className={`flex items-center gap-4 rounded-xl px-5 py-4 ${
                     highlight ? 'bg-brand-orange' : 'bg-white/10'
                   }`}
                 >
-                  <p className="font-bold text-xl">{pct}</p>
-                  <p className="text-sm mt-1 text-white/80">{label}</p>
+                  <Icon className="w-6 h-6 flex-shrink-0 text-white" />
+                  <span className="flex-1 font-medium text-white">{label}</span>
+                  <span className="font-bold text-white text-lg">{surcharge}</span>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Testimonials */}
+        {/* ── CONTACT ── */}
         <section className="py-14 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl lg:text-3xl font-bold text-brand-navy text-center mb-8">
-              Lo que dicen nuestros clientes
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                {
-                  name: 'María González',
-                  role: 'Enfermera, Hospital Italiano',
-                  text: 'Excelente calidad en los ambos. El Arciel es muy cómodo para trabajar largas jornadas. Lo recomiendo 100%.',
-                },
-                {
-                  name: 'Carlos Rodríguez',
-                  role: 'Chef, Restaurante BA',
-                  text: 'Los delantales de cocina son resistentes y fáciles de lavar. Compré 5 para todo mi equipo y quedamos muy conformes.',
-                },
-                {
-                  name: 'Laura Martínez',
-                  role: 'Maestra jardinera, CABA',
-                  text: 'El delantal docente es hermoso, bien cortado y el azul es muy lindo. Llegó rápido y bien embalado.',
-                },
-              ].map(({ name, role, text }) => (
-                <div key={name} className="bg-white rounded-xl p-6 shadow-sm">
-                  <div className="flex gap-1 mb-3">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star key={s} className="w-4 h-4 text-yellow-400 fill-current" />
-                    ))}
-                  </div>
-                  <p className="text-gray-600 text-sm leading-relaxed italic">"{text}"</p>
-                  <div className="mt-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-brand-navy text-white flex items-center justify-center text-sm font-bold">
-                      {name[0]}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{name}</p>
-                      <p className="text-xs text-gray-500">{role}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* CTA */}
-        <section className="py-14 bg-brand-orange">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
-            <h2 className="text-2xl lg:text-3xl font-bold">¿Necesitás uniforme para tu equipo?</h2>
-            <p className="mt-3 text-orange-100 text-lg">
-              Cotizá pedidos mayoristas y uniformes personalizados para tu empresa o institución.
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 className="text-2xl lg:text-3xl font-bold text-brand-navy mb-2">Contacto</h2>
+            <p className="text-gray-500 mb-8">
+              Hacemos envíos a toda CABA. Respondemos de lunes a sábado de 9 a 20hs.
             </p>
-            <a
-              href={`https://wa.me/${WA_NUMBER}?text=Hola! Quiero consultar sobre pedidos mayoristas de uniformes`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-6 inline-flex items-center gap-2 bg-white text-brand-orange font-bold px-8 py-3 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <MessageCircle className="w-5 h-5" />
-              Consultar por WhatsApp
-            </a>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <a
+                href={`https://wa.me/${WA_NUMBER}?text=Hola! Quiero consultar sobre los uniformes`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary inline-flex items-center gap-2"
+              >
+                <MessageCircle className="w-5 h-5" />
+                Escribir por WhatsApp
+              </a>
+              <a
+                href="mailto:info@mlm.com.ar"
+                className="inline-flex items-center gap-2 text-gray-600 hover:text-brand-navy font-semibold transition-colors"
+              >
+                <Mail className="w-5 h-5" />
+                info@mlm.com.ar
+              </a>
+            </div>
+            <div className="flex items-center justify-center gap-2 mt-6 text-gray-500 text-sm">
+              <MapPin className="w-4 h-4 text-brand-orange" />
+              Ciudad Autónoma de Buenos Aires, Argentina
+            </div>
           </div>
         </section>
       </main>
