@@ -5,9 +5,9 @@
 
 import { supabase } from './supabase'
 
-const VISITOR_COOKIE_KEY = 'eureka_visitor_id'
-const SESSION_KEY = 'eureka_session_id'
-const PENDING_EVENTS_KEY = 'eureka_pending_events'
+const VISITOR_COOKIE_KEY = 'mlm_visitor_id'
+const SESSION_KEY = 'mlm_session_id'
+const PENDING_EVENTS_KEY = 'mlm_pending_events'
 const COOKIE_EXPIRY_DAYS = 365
 
 // ──────────────────────────────────────────────────────────────
@@ -240,7 +240,7 @@ export function trackSearch(query, resultsCount) {
 // Cart abandonment detection
 // ──────────────────────────────────────────────────────────────
 
-const CHECKOUT_STARTED_KEY = 'eureka_checkout_started'
+const CHECKOUT_STARTED_KEY = 'mlm_checkout_started'
 
 export function markCheckoutStarted(cartData) {
   sessionStorage.setItem(

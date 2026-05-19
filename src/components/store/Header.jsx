@@ -40,7 +40,7 @@ export default function Header() {
               <Package className="w-5 h-5 text-white" />
             </div>
             <div className="leading-tight">
-              <span className="block text-white font-bold text-lg leading-none">Eureka</span>
+              <span className="block text-white font-bold text-lg leading-none">MLM</span>
               <span className="block text-brand-orange text-xs font-medium tracking-wide uppercase">
                 Ropa de Trabajo
               </span>

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { CartProvider } from './contexts/CartContext'
 import { AuthProvider } from './contexts/AuthContext'
@@ -18,9 +18,49 @@ import OrdersPage from './pages/admin/OrdersPage'
 import CustomersPage from './pages/admin/CustomersPage'
 import StockPage from './pages/admin/StockPage'
 import AnalyticsPage from './pages/admin/AnalyticsPage'
+import FinancesPage from './pages/admin/FinancesPage'
 
 // Admin Layout
 import AdminLayout from './components/admin/AdminLayout'
+
+import React from 'react'
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  componentDidCatch(error, info) {
+    console.error('App error:', error, info)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+          <div className="text-center max-w-md">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Algo salió mal</h1>
+            <p className="text-gray-500 mb-4">
+              Ocurrió un error inesperado. Por favor recargá la página.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            >
+              Recargar página
+            </button>
+            {this.state.error && (
+              <p className="text-xs text-gray-400 mt-4 font-mono">{this.state.error.message}</p>
+            )}
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 function ProtectedAdminRoute({ children }) {
   const { user, loading } = useAdminAuth()
@@ -50,64 +90,65 @@ function useAdminAuth() {
   return state
 }
 
-import React from 'react'
-
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <CartProvider>
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: '#0f1b4c',
-                color: '#fff',
-              },
-              success: {
+    <ErrorBoundary>
+      <HashRouter>
+        <AuthProvider>
+          <CartProvider>
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 3000,
                 style: {
-                  background: '#16a34a',
+                  background: '#0f1b4c',
+                  color: '#fff',
                 },
-              },
-              error: {
-                style: {
-                  background: '#dc2626',
+                success: {
+                  style: {
+                    background: '#16a34a',
+                  },
                 },
-              },
-            }}
-          />
-          <Routes>
-            {/* Store Routes */}
-            <Route path="/" element={<HomePage />} />
-            <Route path="/catalogo" element={<CatalogPage />} />
-            <Route path="/producto/:slug" element={<ProductDetailPage />} />
-            <Route path="/carrito" element={<CartPage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
+                error: {
+                  style: {
+                    background: '#dc2626',
+                  },
+                },
+              }}
+            />
+            <Routes>
+              {/* Store Routes */}
+              <Route path="/" element={<HomePage />} />
+              <Route path="/catalogo" element={<CatalogPage />} />
+              <Route path="/producto/:slug" element={<ProductDetailPage />} />
+              <Route path="/carrito" element={<CartPage />} />
+              <Route path="/checkout" element={<CheckoutPage />} />
 
-            {/* Admin Routes */}
-            <Route path="/admin/login" element={<AdminLoginPage />} />
-            <Route
-              path="/admin"
-              element={
-                <ProtectedAdminRoute>
-                  <AdminLayout />
-                </ProtectedAdminRoute>
-              }
-            >
-              <Route index element={<DashboardPage />} />
-              <Route path="productos" element={<ProductsPage />} />
-              <Route path="pedidos" element={<OrdersPage />} />
-              <Route path="clientes" element={<CustomersPage />} />
-              <Route path="stock" element={<StockPage />} />
-              <Route path="analiticas" element={<AnalyticsPage />} />
-            </Route>
+              {/* Admin Routes */}
+              <Route path="/admin/login" element={<AdminLoginPage />} />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminLayout />
+                  </ProtectedAdminRoute>
+                }
+              >
+                <Route index element={<DashboardPage />} />
+                <Route path="productos" element={<ProductsPage />} />
+                <Route path="pedidos" element={<OrdersPage />} />
+                <Route path="clientes" element={<CustomersPage />} />
+                <Route path="stock" element={<StockPage />} />
+                <Route path="analiticas" element={<AnalyticsPage />} />
+                <Route path="finanzas" element={<FinancesPage />} />
+              </Route>
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </CartProvider>
-      </AuthProvider>
-    </BrowserRouter>
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </CartProvider>
+        </AuthProvider>
+      </HashRouter>
+    </ErrorBoundary>
   )
 }
