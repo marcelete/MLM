@@ -9,9 +9,12 @@ import CatalogPage from './pages/store/CatalogPage'
 import ProductDetailPage from './pages/store/ProductDetailPage'
 import CartPage from './pages/store/CartPage'
 import CheckoutPage from './pages/store/CheckoutPage'
+import AccountPage from './pages/store/AccountPage'
+
+// Auth Pages
+import LoginPage from './pages/LoginPage'
 
 // Admin Pages
-import AdminLoginPage from './pages/admin/AdminLoginPage'
 import DashboardPage from './pages/admin/DashboardPage'
 import ProductsPage from './pages/admin/ProductsPage'
 import OrdersPage from './pages/admin/OrdersPage'
@@ -19,11 +22,13 @@ import CustomersPage from './pages/admin/CustomersPage'
 import StockPage from './pages/admin/StockPage'
 import AnalyticsPage from './pages/admin/AnalyticsPage'
 import FinancesPage from './pages/admin/FinancesPage'
+import UsersPage from './pages/admin/UsersPage'
 
 // Admin Layout
 import AdminLayout from './components/admin/AdminLayout'
 
 import React from 'react'
+import { useAuth } from './contexts/AuthContext'
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -62,32 +67,38 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-function ProtectedAdminRoute({ children }) {
-  const { user, loading } = useAdminAuth()
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-brand-orange border-t-transparent rounded-full" /></div>
-  if (!user) return <Navigate to="/admin/login" replace />
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin h-8 w-8 border-4 border-brand-orange border-t-transparent rounded-full" />
+    </div>
+  )
+}
+
+// Redirect to /login if not logged in
+function RequireAuth({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return <LoadingSpinner />
+  if (!user) return <Navigate to="/login" replace />
   return children
 }
 
-// Inline hook for protected routes
-function useAdminAuth() {
-  const [state, setState] = React.useState({ user: null, loading: true })
-  React.useEffect(() => {
-    import('./lib/supabase').then(({ supabase }) => {
-      if (!supabase) {
-        setState({ user: null, loading: false })
-        return
-      }
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setState({ user: session?.user || null, loading: false })
-      })
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setState({ user: session?.user || null, loading: false })
-      })
-      return () => subscription.unsubscribe()
-    })
-  }, [])
-  return state
+// Redirect to / if not admin or superadmin
+function RequireAdmin({ children }) {
+  const { user, loading, isAdmin } = useAuth()
+  if (loading) return <LoadingSpinner />
+  if (!user) return <Navigate to="/login" replace />
+  if (!isAdmin()) return <Navigate to="/" replace />
+  return children
+}
+
+// Redirect to /admin if not superadmin
+function RequireSuperAdmin({ children }) {
+  const { user, loading, isSuperAdmin } = useAuth()
+  if (loading) return <LoadingSpinner />
+  if (!user) return <Navigate to="/login" replace />
+  if (!isSuperAdmin()) return <Navigate to="/admin" replace />
+  return children
 }
 
 export default function App() {
@@ -123,15 +134,27 @@ export default function App() {
               <Route path="/producto/:slug" element={<ProductDetailPage />} />
               <Route path="/carrito" element={<CartPage />} />
               <Route path="/checkout" element={<CheckoutPage />} />
+              <Route
+                path="/mi-cuenta"
+                element={
+                  <RequireAuth>
+                    <AccountPage />
+                  </RequireAuth>
+                }
+              />
+
+              {/* Auth Routes */}
+              <Route path="/login" element={<LoginPage />} />
+              {/* Legacy admin login → redirect to unified login */}
+              <Route path="/admin/login" element={<Navigate to="/login" replace />} />
 
               {/* Admin Routes */}
-              <Route path="/admin/login" element={<AdminLoginPage />} />
               <Route
                 path="/admin"
                 element={
-                  <ProtectedAdminRoute>
+                  <RequireAdmin>
                     <AdminLayout />
-                  </ProtectedAdminRoute>
+                  </RequireAdmin>
                 }
               >
                 <Route index element={<DashboardPage />} />
@@ -141,6 +164,14 @@ export default function App() {
                 <Route path="stock" element={<StockPage />} />
                 <Route path="analiticas" element={<AnalyticsPage />} />
                 <Route path="finanzas" element={<FinancesPage />} />
+                <Route
+                  path="usuarios"
+                  element={
+                    <RequireSuperAdmin>
+                      <UsersPage />
+                    </RequireSuperAdmin>
+                  }
+                />
               </Route>
 
               {/* Fallback */}

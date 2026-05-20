@@ -1,16 +1,23 @@
-import React, { useState, useEffect } from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
-import { ShoppingCart, Menu, X, Package } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { ShoppingCart, Menu, X, Package, User, LogOut, LayoutDashboard, ChevronDown } from 'lucide-react'
 import { useCart } from '../../contexts/CartContext'
+import { useAuth } from '../../contexts/AuthContext'
+import toast from 'react-hot-toast'
 
 export default function Header() {
   const { itemCount, toggleCart } = useCart()
+  const { user, role, logout, isAdmin } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
+  const userMenuRef = useRef(null)
 
   useEffect(() => {
     setMenuOpen(false)
+    setUserMenuOpen(false)
   }, [location.pathname])
 
   useEffect(() => {
@@ -18,6 +25,25 @@ export default function Header() {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  // Close user dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false)
+      }
+    }
+    if (userMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [userMenuOpen])
+
+  const handleLogout = async () => {
+    await logout()
+    toast.success('Sesión cerrada')
+    navigate('/')
+  }
 
   const navLinks = [
     { to: '/', label: 'Inicio' },
@@ -68,6 +94,79 @@ export default function Header() {
 
           {/* Right actions */}
           <div className="flex items-center gap-2">
+            {/* User menu / login button */}
+            {user ? (
+              isAdmin() ? (
+                // Admin / Superadmin: show admin panel link + logout
+                <div className="hidden sm:flex items-center gap-2">
+                  <Link
+                    to="/admin"
+                    className="flex items-center gap-1.5 text-sm text-gray-200 hover:text-white hover:bg-white/10 px-3 py-2 rounded-lg transition-colors font-medium"
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span className="hidden md:inline">Panel Admin</span>
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
+                    title="Cerrar sesión"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="hidden md:inline">Salir</span>
+                  </button>
+                </div>
+              ) : (
+                // Comprador: dropdown with name
+                <div className="relative hidden sm:block" ref={userMenuRef}>
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-2 text-sm text-gray-200 hover:text-white hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
+                  >
+                    <div className="w-7 h-7 bg-brand-orange rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-xs font-bold">
+                        {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                      </span>
+                    </div>
+                    <span className="hidden md:block font-medium max-w-[120px] truncate">{user.name}</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {userMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                      <div className="px-4 py-2 border-b border-gray-100">
+                        <p className="text-xs font-semibold text-gray-800 truncate">{user.name}</p>
+                        <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                      </div>
+                      <Link
+                        to="/mi-cuenta"
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        <User className="w-4 h-4 text-gray-400" />
+                        Mi cuenta
+                      </Link>
+                      <button
+                        onClick={() => { setUserMenuOpen(false); handleLogout() }}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Cerrar sesión
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            ) : (
+              // Not logged in: login button
+              <Link
+                to="/login"
+                className="hidden sm:flex items-center gap-1.5 text-sm text-gray-200 hover:text-white hover:bg-white/10 px-3 py-2 rounded-lg transition-colors font-medium"
+              >
+                <User className="w-4 h-4" />
+                <span className="hidden md:inline">Iniciar sesión</span>
+              </Link>
+            )}
+
             {/* Cart button */}
             <button
               onClick={toggleCart}
@@ -114,7 +213,8 @@ export default function Header() {
                 {link.label}
               </NavLink>
             ))}
-            <div className="pt-2 border-t border-white/10">
+
+            <div className="pt-2 border-t border-white/10 space-y-1">
               <Link
                 to="/carrito"
                 className="flex items-center gap-2 px-4 py-3 text-gray-200 hover:text-white hover:bg-white/10 rounded-lg text-sm font-medium transition-colors"
@@ -127,6 +227,44 @@ export default function Header() {
                   </span>
                 )}
               </Link>
+
+              {/* Mobile auth links */}
+              {user ? (
+                <>
+                  {isAdmin() ? (
+                    <Link
+                      to="/admin"
+                      className="flex items-center gap-2 px-4 py-3 text-gray-200 hover:text-white hover:bg-white/10 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <LayoutDashboard className="w-4 h-4" />
+                      Panel Admin
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/mi-cuenta"
+                      className="flex items-center gap-2 px-4 py-3 text-gray-200 hover:text-white hover:bg-white/10 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <User className="w-4 h-4" />
+                      Mi cuenta
+                    </Link>
+                  )}
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-4 py-3 text-red-300 hover:text-white hover:bg-red-500/20 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Cerrar sesión
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/login"
+                  className="flex items-center gap-2 px-4 py-3 text-gray-200 hover:text-white hover:bg-white/10 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <User className="w-4 h-4" />
+                  Iniciar sesión
+                </Link>
+              )}
             </div>
           </nav>
         </div>

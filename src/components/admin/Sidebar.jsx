@@ -12,11 +12,24 @@ import {
   ExternalLink,
   Package2,
   TrendingUp,
+  ShieldCheck,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import toast from 'react-hot-toast'
 
-const navItems = [
+const ROLE_LABELS = {
+  admin: 'Admin',
+  superadmin: 'Superadmin',
+  comprador: 'Comprador',
+}
+
+const ROLE_COLORS = {
+  admin: 'bg-blue-500/20 text-blue-200',
+  superadmin: 'bg-purple-500/20 text-purple-200',
+  comprador: 'bg-green-500/20 text-green-200',
+}
+
+const BASE_NAV_ITEMS = [
   { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/admin/productos', icon: Package, label: 'Productos' },
   { to: '/admin/pedidos', icon: ShoppingCart, label: 'Pedidos' },
@@ -27,15 +40,19 @@ const navItems = [
 ]
 
 export default function Sidebar({ onClose }) {
-  const { signOut } = useAuth()
+  const { user, role, logout, isSuperAdmin } = useAuth()
   const navigate = useNavigate()
+
+  const navItems = isSuperAdmin()
+    ? [...BASE_NAV_ITEMS, { to: '/admin/usuarios', icon: ShieldCheck, label: 'Usuarios' }]
+    : BASE_NAV_ITEMS
 
   const handleLogout = async () => {
     try {
-      await signOut()
+      await logout()
       toast.success('Sesión cerrada')
-      navigate('/admin/login')
-    } catch (e) {
+      navigate('/')
+    } catch {
       toast.error('Error al cerrar sesión')
     }
   }
@@ -86,6 +103,23 @@ export default function Sidebar({ onClose }) {
 
       {/* Footer */}
       <div className="px-3 py-4 border-t border-white/10 space-y-1">
+        {/* Logged in user */}
+        {user && (
+          <div className="flex items-center gap-3 px-4 py-3 mb-1">
+            <div className="w-8 h-8 bg-brand-orange rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-xs font-bold">
+                {user.name?.charAt(0)?.toUpperCase() || 'U'}
+              </span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-white truncate">{user.name}</p>
+              <span className={`inline-block text-xs px-1.5 py-0.5 rounded font-medium mt-0.5 ${ROLE_COLORS[role] || 'bg-gray-500/20 text-gray-300'}`}>
+                {ROLE_LABELS[role] || role}
+              </span>
+            </div>
+          </div>
+        )}
+
         <a
           href="/"
           target="_blank"
@@ -100,7 +134,7 @@ export default function Sidebar({ onClose }) {
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          Cerrar sesión
+          Salir
         </button>
       </div>
     </div>
