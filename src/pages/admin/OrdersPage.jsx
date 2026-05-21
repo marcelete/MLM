@@ -3,6 +3,8 @@ import { Search, Filter, ChevronDown, Eye, X, FileText, Tag } from 'lucide-react
 import { supabase } from '../../lib/supabase'
 import { formatPrice, PAYMENT_LABELS } from '../../data/products'
 import { generarTicketPDF, generarEtiquetaPDF } from '../../lib/pdf'
+import { sendEmail } from '../../lib/email'
+import { logAction } from '../../lib/audit'
 import toast from 'react-hot-toast'
 
 const STATUS_OPTIONS = [
@@ -91,11 +93,30 @@ export default function OrdersPage() {
 
   async function updateStatus(orderId, newStatus) {
     if (!supabase) { toast.error('Supabase no configurado'); return }
+    const prev = orders.find((o) => o.id === orderId)
+    const prevStatus = prev?.status
     const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId)
     if (error) { toast.error('Error al actualizar'); return }
     setOrders((os) => os.map((o) => o.id === orderId ? { ...o, status: newStatus } : o))
     if (viewOrder?.id === orderId) setViewOrder((o) => ({ ...o, status: newStatus }))
     toast.success(`Estado actualizado a: ${STATUS_LABELS[newStatus]}`)
+
+    // Audit
+    logAction('cambiar_estado_orden', 'orden', orderId, { from: prevStatus, to: newStatus })
+
+    // Email al cliente si el cambio lo amerita
+    const email = prev?.customers?.email
+    if (email) {
+      const tplMap = { confirmed: 'pago_confirmado', shipped: 'orden_enviada', delivered: 'orden_entregada' }
+      const template = tplMap[newStatus]
+      if (template) {
+        sendEmail({
+          to: email,
+          template,
+          data: { order_id: orderId, customer_name: prev?.customers?.name, total: prev?.total },
+        })
+      }
+    }
   }
 
   const filtered = orders.filter((o) => {

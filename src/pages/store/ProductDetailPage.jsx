@@ -5,6 +5,7 @@ import Header from '../../components/store/Header'
 import Footer from '../../components/store/Footer'
 import CartDrawer from '../../components/store/CartDrawer'
 import PricingTable from '../../components/store/PricingTable'
+import ProductReviews from '../../components/store/ProductReviews'
 import { ColorSwatch } from '../../components/store/ColorSwatch'
 import { useProduct } from '../../hooks/useProducts'
 import { useCart } from '../../contexts/CartContext'
@@ -340,6 +341,8 @@ export default function ProductDetailPage() {
               </div>
             </div>
           </div>
+
+          <ProductReviews productId={product.id} />
         </div>
       </main>
 

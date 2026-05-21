@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Package, ShoppingBag, LogOut, ChevronRight, Calendar, Clock } from 'lucide-react'
+import { Package, ShoppingBag, LogOut, ChevronRight, Calendar, Clock, Star, X } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Header from '../../components/store/Header'
+import StarRating from '../../components/store/StarRating'
 import toast from 'react-hot-toast'
 
 const STATUS_LABELS = {
@@ -39,6 +40,8 @@ export default function AccountPage() {
   const navigate = useNavigate()
   const [orders, setOrders] = useState([])
   const [loadingOrders, setLoadingOrders] = useState(true)
+  const [reviewedKeys, setReviewedKeys] = useState(new Set()) // 'orderId:productId'
+  const [reviewModal, setReviewModal] = useState(null) // { order_id, product_id, product_name }
 
   useEffect(() => {
     if (!user) return
@@ -69,12 +72,21 @@ export default function AccountPage() {
         .from('orders')
         .select(`
           id, status, total, created_at,
-          order_items(product_name, quantity, unit_price)
+          order_items(product_id, product_name, quantity, unit_price)
         `)
         .eq('customer_id', customer.id)
         .order('created_at', { ascending: false })
 
       setOrders(ordersData || [])
+
+      // Cargar reviews ya hechas por este usuario para ocultar el botón "dejar review"
+      if (user?.id) {
+        const { data: rs } = await supabase
+          .from('reviews')
+          .select('order_id, product_id')
+          .eq('user_id', user.id)
+        if (rs) setReviewedKeys(new Set(rs.map((r) => `${r.order_id}:${r.product_id}`)))
+      }
     } catch {
       setOrders([])
     }
@@ -190,6 +202,20 @@ export default function AccountPage() {
                             {order.order_items.map(i => `${i.quantity}x ${i.product_name}`).join(', ')}
                           </p>
                         )}
+                        {order.status === 'delivered' && order.order_items?.some((i) => i.product_id && !reviewedKeys.has(`${order.id}:${i.product_id}`)) && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {order.order_items.filter((i) => i.product_id && !reviewedKeys.has(`${order.id}:${i.product_id}`)).map((i) => (
+                              <button
+                                key={i.product_id}
+                                onClick={() => setReviewModal({ order_id: order.id, product_id: i.product_id, product_name: i.product_name })}
+                                className="inline-flex items-center gap-1 text-xs bg-yellow-50 text-yellow-700 hover:bg-yellow-100 px-2 py-1 rounded-full transition-colors"
+                              >
+                                <Star className="w-3 h-3" />
+                                Opinar sobre {i.product_name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-base font-bold text-gray-900">{formatCurrency(order.total)}</p>
@@ -203,6 +229,79 @@ export default function AccountPage() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {reviewModal && (
+        <ReviewModal
+          modal={reviewModal}
+          user={user}
+          onClose={() => setReviewModal(null)}
+          onSubmitted={(key) => {
+            setReviewedKeys((s) => new Set([...s, key]))
+            setReviewModal(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function ReviewModal({ modal, user, onClose, onSubmitted }) {
+  const [rating, setRating] = useState(5)
+  const [comment, setComment] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function submit() {
+    if (!rating) { toast.error('Elegí una puntuación'); return }
+    if (!supabase) { toast.error('Supabase no configurado'); return }
+    setSubmitting(true)
+    const { error } = await supabase.from('reviews').insert({
+      product_id: modal.product_id,
+      order_id: modal.order_id,
+      user_id: user.id,
+      customer_name: user.name,
+      rating,
+      comment: comment.trim() || null,
+      verified: true,
+    })
+    setSubmitting(false)
+    if (error) { toast.error('No se pudo guardar la opinión'); return }
+    toast.success('¡Gracias por tu opinión!')
+    onSubmitted(`${modal.order_id}:${modal.product_id}`)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+          <h2 className="font-bold">Opiná sobre tu compra</h2>
+          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-gray-600">{modal.product_name}</p>
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Tu puntuación</p>
+            <StarRating rating={rating} size={28} onChange={setRating} />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Tu comentario (opcional)</p>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              rows={4}
+              maxLength={500}
+              placeholder="¿Cómo te resultó la calidad, el talle y la entrega?"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange resize-none"
+            />
+          </div>
+          <button
+            onClick={submit}
+            disabled={submitting}
+            className="w-full bg-brand-orange text-white py-2.5 rounded-lg font-semibold hover:bg-brand-orangeDark disabled:opacity-50 transition-colors"
+          >
+            {submitting ? 'Enviando...' : 'Enviar opinión'}
+          </button>
         </div>
       </div>
     </div>

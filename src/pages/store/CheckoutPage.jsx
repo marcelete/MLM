@@ -10,6 +10,7 @@ import { trackPageView, trackCheckoutStarted, trackCheckoutCompleted, markChecko
 import { formatPrice, PAYMENT_LABELS, PAYMENT_SURCHARGES, getPriceForMethod } from '../../data/products'
 import { generateWhatsAppURL } from '../../lib/mercadopago'
 import { supabase } from '../../lib/supabase'
+import { sendEmail } from '../../lib/email'
 import toast from 'react-hot-toast'
 
 const STEPS = ['Datos', 'Pago', 'Confirmar']
@@ -194,6 +195,20 @@ export default function CheckoutPage() {
 
         setOrderId(order.id)
         trackCheckoutCompleted(order.id, total, paymentMethod)
+
+        // Email de confirmación (no bloquea el flujo si falla)
+        sendEmail({
+          to: form.email,
+          template: 'compra_confirmada',
+          data: {
+            order_id: order.id,
+            customer_name: form.name,
+            items: orderItems,
+            total,
+            payment_method: paymentMethod,
+            payment_label: PAYMENT_LABELS[paymentMethod],
+          },
+        })
       } else {
         // No Supabase - just generate a local ID
         const localId = `LOCAL-${Date.now()}`
