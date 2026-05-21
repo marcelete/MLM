@@ -43,8 +43,15 @@ export function AuthProvider({ children }) {
     }
 
     // Supabase mode
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       try {
+        // Si el refresh token falló (sesión corrupta), limpiamos
+        if (error && /refresh.token/i.test(error.message || '')) {
+          console.info('AuthContext: refresh token inválido, limpiando sesión')
+          await supabase.auth.signOut().catch(() => {})
+          setUser(null); setRole(null); setLoading(false)
+          return
+        }
         if (session?.user) {
           await loadSupabaseProfile(session.user)
         } else {
@@ -53,6 +60,9 @@ export function AuthProvider({ children }) {
         }
       } catch (e) {
         console.warn('AuthContext: getSession profile load failed', e)
+        if (/refresh.token/i.test(e?.message || '')) {
+          await supabase.auth.signOut().catch(() => {})
+        }
         setUser(null)
         setRole(null)
       } finally {
