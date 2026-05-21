@@ -1,0 +1,290 @@
+================================================================
+INFORME DE ESTADO — MLM ROPA DE TRABAJO (E-COMMERCE)
+Fecha: 2026-05-21
+Repositorio: github.com/marcelete/MLM
+Sitio en producción: https://marcelete.github.io/MLM/
+Backend: Supabase (proyecto zgwldlhcczfjpoerampe)
+================================================================
+
+
+────────────────────────────────────────────────────────────────
+1. LO QUE YA HICIMOS  ✅
+────────────────────────────────────────────────────────────────
+
+1.1  INFRAESTRUCTURA Y DEPLOY
+  • Repositorio Git creado en marcelete/MLM
+  • Hosting estático en GitHub Pages con auto-deploy por
+    GitHub Actions (cada push a la rama default redepliega solo)
+  • Variables de entorno (Supabase URL, anon key, WhatsApp)
+    configuradas como GitHub secrets
+  • Base de datos en Supabase (tier gratuito) con schema
+    completo aplicado: profiles, categories, products,
+    product_variants, customers, orders, order_items,
+    visitor_sessions, analytics_events
+  • RLS (Row Level Security) habilitado con políticas por rol
+  • Branding del sitio en español (textos, monedas en ARS,
+    fechas en formato es-AR)
+
+1.2  PÁGINAS PÚBLICAS (sin login)
+  • Home con hero, productos destacados y categorías
+  • Catálogo con filtros (categoría, talla, color, precio,
+    búsqueda)
+  • Detalle de producto con variantes (color/talla/modelo),
+    galería de imágenes, tabla de precios por método de pago
+  • Carrito persistente (CartContext + localStorage)
+  • Cart Drawer lateral
+  • Checkout en 3 pasos (Datos → Pago → Confirmar)
+  • Página de confirmación con número de pedido
+  • Footer con info de contacto
+
+1.3  AUTENTICACIÓN Y ROLES
+  • Login y registro con email + contraseña (Supabase Auth)
+  • 3 roles definidos: 'comprador', 'admin', 'superadmin'
+  • Trigger SQL que crea profile automáticamente al registrarse
+  • AuthContext con persistencia de sesión y refresh de token
+  • Página de login pública y página de login admin separada
+  • Cuenta de usuario "Mi cuenta" con historial de pedidos
+
+1.4  PANEL ADMIN (rol admin y superadmin)
+  • Dashboard con KPIs (órdenes hoy, ingresos, pendientes)
+  • Productos: CRUD completo + gestión de stock por variante
+  • Stock: vista de inventario con alertas
+  • Pedidos: listado, filtros por estado, vista de detalle,
+    cambio de estado
+  • Clientes: listado y vista de cliente
+  • Finanzas: reportes básicos de ingresos
+  • Analytics: tracking interno de sesiones y eventos
+
+1.5  PANEL SUPERADMIN
+  • Gestión de usuarios (listar, cambiar roles)
+
+1.6  GENERACIÓN DE PDF  (Implementado en sesión actual)
+  • Librería jsPDF integrada
+  • src/lib/pdf.js con dos generadores:
+      - generarTicketPDF(): A4 con detalle completo del pedido,
+        productos, totales, método de pago, datos del cliente
+      - generarEtiquetaPDF(): 10x15cm con destinatario,
+        teléfono, dirección, checkboxes Frágil/Urgente
+  • Botones "Imprimir ticket" e "Imprimir etiqueta" en el
+    detalle de pedido del panel admin
+  • Order items se cargan desde la base al abrir el modal
+
+1.7  EMAILS TRANSACCIONALES  (Implementado en sesión actual)
+  • Edge Function supabase/functions/send-email
+  • Integración con Resend.dev (3.000 emails/mes gratis)
+  • 4 templates HTML responsivos con branding MLM:
+      - compra_confirmada (al crear orden)
+      - pago_confirmado (al pasar a "Confirmado")
+      - orden_enviada (al pasar a "Enviado")
+      - orden_entregada (al pasar a "Entregado")
+  • CheckoutPage dispara email al cliente al crear orden
+  • OrdersPage dispara email al cambiar estado
+  • Helper src/lib/email.js que invoca la edge function
+    sin bloquear el flujo si falla
+
+1.8  WEBHOOK MERCADO PAGO  (Implementado en sesión actual)
+  • Edge Function supabase/functions/mercadopago-webhook
+  • Recibe notificaciones de pago, consulta el detalle a la API
+    de MP y actualiza el estado de la orden automáticamente
+  • Loguea todos los eventos en mercadopago_eventos
+  • Mapea estados MP → estados internos:
+      approved → confirmed
+      rejected/cancelled → cancelled
+
+1.9  SISTEMA DE REVIEWS  (Implementado en sesión actual)
+  • Tabla reviews con: rating 1-5, comentario, verified flag,
+    respuesta del admin, UNIQUE por (orden, producto)
+  • Vista product_rating_summary (promedio y conteo)
+  • RLS: lectura pública, escritura solo del propio usuario,
+    edición admin
+  • Componente StarRating reutilizable (lectura e input)
+  • Componente ProductReviews integrado en detalle de producto
+  • Modal "Opinar sobre tu compra" en AccountPage para órdenes
+    entregadas, con flag de compra verificada
+
+1.10 AUDIT LOGS  (Implementado en sesión actual)
+  • Tabla audit_logs con: user_id, email, action,
+    resource_type, resource_id, changes JSONB
+  • Helper src/lib/audit.js: logAction()
+  • RLS: solo superadmin puede leer
+  • Integrado en OrdersPage (cambios de estado de pedidos)
+
+
+────────────────────────────────────────────────────────────────
+2. LO QUE QUEREMOS HACER (próximos pasos a corto plazo)  🎯
+────────────────────────────────────────────────────────────────
+
+2.1  AUDIT LOGS — extender cobertura
+  • Loguear cambios de precio y stock en ProductsPage
+  • Loguear creación/eliminación de admins en UsersPage
+  • Crear vista de Logs en el panel superadmin (página nueva)
+
+2.2  RESPUESTAS DE ADMIN A REVIEWS
+  • UI en el panel admin para responder reviews
+  • Mostrar respuesta destacada en la página pública
+
+2.3  GENERAR LINK MERCADO PAGO REAL
+  • Hoy el botón de MP es un placeholder
+  • Crear edge function "create-mp-preference" que devuelva el
+    init_point con external_reference = order_id
+  • Conectar con webhook ya implementado
+
+2.4  MEJORAS DE UX
+  • Confirmación visual del pedido más completa (no solo "id")
+  • Botón "Descargar comprobante" para el cliente desde
+    "Mis pedidos"
+
+
+────────────────────────────────────────────────────────────────
+3. LO QUE FALTA (según especificación original del docx)  ⏳
+────────────────────────────────────────────────────────────────
+
+3.1  MVP DE LA SPEC — todavía pendiente
+  • DIRECCIONES FRECUENTES (tabla direcciones_frecuentes)
+      - Cliente guarda múltiples direcciones
+      - Reutilizar en checkout sin re-tipear
+      - CRUD desde "Mi cuenta"
+
+  • ZONAS DE ENTREGA Y COSTO DE ENVÍO
+      - Hoy el envío no se calcula (asume costo cero)
+      - Tabla zonas_entrega (CABA, GBA Zona 1, GBA Zona 2)
+      - Costo por zona
+      - Sumar al total del pedido
+      - Selector en el checkout
+
+  • CATEGORÍAS / ESPECIALIDADES MÉDICAS
+      - La spec menciona "Enfermería, Cirugía, Odontología"
+      - Hoy hay "Ambos / Delantales" — discutir si conviene
+        renombrar y profundizar
+
+  • PÁGINAS INSTITUCIONALES
+      - Sobre Nosotros
+      - Contacto (con formulario, no solo WhatsApp)
+      - FAQ
+      - Términos y Condiciones
+      - Política de Privacidad
+      - Entregas (zonas de cobertura)
+
+3.2  CORTO PLAZO DE LA SPEC
+  • SISTEMA DE DEVOLUCIONES (RMA)
+      - Tabla devoluciones (motivo, estado, reembolso)
+      - Cliente solicita desde "Mis compras"
+      - Admin autoriza / rechaza / reembolsa
+      - Workflow: solicitada → autorizada → recibida →
+        reembolsada
+
+  • MENSAJES IN-APP POR ORDEN
+      - Tabla mensajes (orden_id, remitente, contenido)
+      - Cliente escribe al admin desde su pedido
+      - Admin responde desde el panel
+      - Indicador de "no leídos"
+
+  • RECUPERACIÓN DE CARRITO ABANDONADO
+      - Cron job (Supabase scheduled function)
+      - Email a las 24hs si abandonó el carrito
+      - Email a las 48hs con código de descuento opcional
+
+  • NOTIFICACIONES PARA ADMIN
+      - Badge en sidebar cuando llega orden nueva
+      - Email a los socios al recibir pedido
+      - (Opcional) Webhook a Telegram/Discord
+
+  • TRACKING DE INGRESOS POR SOCIO
+      - Campo "quien_recibe" en orders (chelo / socio2 / socio3)
+      - Tabla ingresos para reporte "¿quién cobró qué?"
+      - Reporte mensual de ingresos por socio
+
+3.3  MEDIANO PLAZO DE LA SPEC
+  • EMAIL AUTOMÁTICO "PEDIR REVIEW"
+      - Cron que dispara 3 días después de la entrega
+      - Template solicitar_review (ya está el endpoint, falta
+        el scheduler)
+
+  • TRACKING DE ENVÍO DETALLADO
+      - Tabla estado_envio con: quién envía, fecha,
+        foto de entrega, timestamp
+      - Vista mobile-friendly para que los socios actualicen
+        desde el celular en ruta
+
+  • REPORTES EXPORTABLES
+      - Botón "Exportar CSV/Excel" en cada reporte del admin
+
+  • TRUST BADGES
+      - "Más de X vendidos" calculado de orders
+      - "Tienda oficial" / "Top rated"
+
+  • PWA (Progressive Web App)
+      - manifest.json + service worker
+      - Instalable como app en el celular
+      - Push notifications (futuro)
+
+  • SEO
+      - meta tags por página
+      - sitemap.xml
+      - structured data (Product schema.org)
+      - Open Graph para compartir en redes
+
+3.4  LARGO PLAZO DE LA SPEC
+  • Dynamic pricing (descuentos por volumen automáticos)
+  • Recomendaciones "también te puede interesar"
+  • Integración con OCA / Andreani para cotizar fletes
+  • App nativa iOS / Android
+  • Facturación electrónica AFIP
+
+3.5  CUMPLIMIENTO LEGAL (Argentina)
+  • Pendiente cuando crezca el volumen:
+      - Alta en AFIP (monotributo o RI)
+      - Facturación electrónica
+      - IIBB por jurisdicción
+      - Registro de base de datos en AAIP
+
+
+────────────────────────────────────────────────────────────────
+4. LIMITACIONES TÉCNICAS A TENER EN CUENTA
+────────────────────────────────────────────────────────────────
+
+  • GitHub Pages es 100% estático: cualquier código de servidor
+    debe ir como Supabase Edge Function (gratuito)
+  • Cron jobs requieren Supabase Cron (también gratuito) —
+    aún no usamos ninguno
+  • El plan free de Supabase incluye:
+      - 500 MB de base de datos
+      - 1 GB de Storage
+      - 50.000 Auth users
+      - 500.000 invocaciones de Edge Functions/mes
+    suficiente para el primer año de operación
+
+  • Resend.dev plan free:
+      - 3.000 emails/mes (100/día)
+      - Cuando se supere, costo es USD 20/mes por 50.000
+
+  • Bundle JS actualmente 720 KB (gz 217 KB). Se puede mejorar
+    con code splitting más adelante.
+
+
+────────────────────────────────────────────────────────────────
+5. SUGERENCIA DE PRIORIDADES PARA LAS PRÓXIMAS SESIONES
+────────────────────────────────────────────────────────────────
+
+  ALTA prioridad (impacto inmediato en operación)
+    1. Zonas de entrega + costo de envío
+    2. Generar link MercadoPago real (cerrar el flujo de pago)
+    3. Direcciones frecuentes
+    4. Notificaciones al admin (badge + email a socios)
+
+  MEDIA prioridad (mejora la experiencia)
+    5. Páginas institucionales (FAQ, Términos, etc.)
+    6. Sistema de devoluciones
+    7. Tracking de ingresos por socio
+    8. Mensajes in-app
+
+  BAJA prioridad (cuando crezca)
+    9.  Recuperación de carrito abandonado
+    10. Email "pedir review" automático
+    11. PWA + SEO
+    12. Tracking de envío con foto
+    13. Reportes exportables a CSV
+
+================================================================
+FIN DEL INFORME
+================================================================
