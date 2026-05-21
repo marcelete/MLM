@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Search, Filter, ChevronDown, Eye, X } from 'lucide-react'
+import { Search, Filter, ChevronDown, Eye, X, FileText, Tag } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { formatPrice, PAYMENT_LABELS } from '../../data/products'
+import { generarTicketPDF, generarEtiquetaPDF } from '../../lib/pdf'
 import toast from 'react-hot-toast'
 
 const STATUS_OPTIONS = [
@@ -42,10 +43,38 @@ export default function OrdersPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [viewOrder, setViewOrder] = useState(null)
+  const [viewItems, setViewItems] = useState([])
 
   useEffect(() => {
     loadOrders()
   }, [])
+
+  useEffect(() => {
+    if (!viewOrder) { setViewItems([]); return }
+    if (!supabase || String(viewOrder.id).startsWith('demo-')) {
+      setViewItems([
+        { product_name: 'Ambo profesional', variant_desc: 'Talle M · Azul', quantity: 1, unit_price: viewOrder.subtotal || viewOrder.total, total_price: viewOrder.subtotal || viewOrder.total },
+      ])
+      return
+    }
+    supabase.from('order_items').select('*').eq('order_id', viewOrder.id).then(({ data }) => {
+      setViewItems(data || [])
+    })
+  }, [viewOrder])
+
+  async function imprimirTicket() {
+    if (!viewOrder) return
+    generarTicketPDF(viewOrder, viewItems, viewOrder.customers)
+  }
+
+  async function imprimirEtiqueta() {
+    if (!viewOrder) return
+    if (!viewOrder.customers?.address) {
+      toast.error('Este cliente no tiene dirección cargada')
+      return
+    }
+    generarEtiquetaPDF(viewOrder, viewOrder.customers)
+  }
 
   async function loadOrders() {
     setLoading(true)
@@ -238,6 +267,25 @@ export default function OrdersPage() {
                   <span>{formatPrice(viewOrder.total)}</span>
                 </div>
               </div>
+              {viewItems.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">Productos</p>
+                  <div className="space-y-1.5">
+                    {viewItems.map((it, i) => (
+                      <div key={i} className="flex justify-between text-sm bg-gray-50 rounded px-3 py-2">
+                        <div>
+                          <p className="font-medium">{it.product_name}</p>
+                          {it.variant_desc && <p className="text-xs text-gray-500">{it.variant_desc}</p>}
+                        </div>
+                        <div className="text-right">
+                          <p>x{it.quantity}</p>
+                          <p className="text-xs text-gray-500">{formatPrice(it.total_price)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <p className="text-xs text-gray-500 mb-1">Cambiar estado</p>
                 <select
@@ -249,6 +297,22 @@ export default function OrdersPage() {
                     <option key={v} value={v}>{l}</option>
                   ))}
                 </select>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+                <button
+                  onClick={imprimirTicket}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-brand-navy text-white rounded-lg hover:bg-brand-navy/90 text-sm font-medium transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  Imprimir ticket
+                </button>
+                <button
+                  onClick={imprimirEtiqueta}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-brand-orange text-white rounded-lg hover:bg-brand-orange/90 text-sm font-medium transition-colors"
+                >
+                  <Tag className="w-4 h-4" />
+                  Imprimir etiqueta
+                </button>
               </div>
             </div>
           </div>
