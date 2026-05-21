@@ -147,18 +147,38 @@ export default function CheckoutPage() {
       }))
 
       if (supabase) {
-        // 1. Upsert customer
+        // 1. Buscar o crear customer (más robusto que upsert porque
+        //    upsert requiere policies UPDATE+SELECT que pueden no estar)
         let customerId = null
-        const { data: customer, error: custErr } = await supabase
-          .from('customers')
-          .upsert(
-            { name: form.name, email: form.email, phone: form.phone, address: form.address, city: 'CABA' },
-            { onConflict: 'email' }
-          )
-          .select('id')
-          .single()
+        const customerData = {
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          address: form.address,
+          city: 'CABA',
+        }
 
-        if (!custErr && customer) customerId = customer.id
+        const { data: existing, error: selErr } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('email', form.email)
+          .maybeSingle()
+        if (selErr) {
+          console.warn('customers select error', selErr)
+        }
+
+        if (existing) {
+          customerId = existing.id
+          await supabase.from('customers').update(customerData).eq('id', existing.id)
+        } else {
+          const { data: inserted, error: insErr } = await supabase
+            .from('customers')
+            .insert(customerData)
+            .select('id')
+            .single()
+          if (insErr) throw new Error('Cliente: ' + insErr.message)
+          customerId = inserted?.id || null
+        }
 
         // 2. Create order
         const { data: order, error: orderErr } = await supabase
@@ -175,21 +195,22 @@ export default function CheckoutPage() {
           .select('id')
           .single()
 
-        if (orderErr) throw orderErr
+        if (orderErr) throw new Error('Pedido: ' + orderErr.message)
 
         // 3. Create order items
         const { error: itemsErr } = await supabase.from('order_items').insert(
           orderItems.map((oi) => ({ ...oi, order_id: order.id }))
         )
-        if (itemsErr) throw itemsErr
+        if (itemsErr) throw new Error('Items: ' + itemsErr.message)
 
-        // Decrement stock for each item
+        // 4. Decrement stock for each item (no bloquea si falla)
         for (const item of items) {
           if (item.variant?.id) {
-            await supabase.rpc('decrement_stock', {
+            const { error: stockErr } = await supabase.rpc('decrement_stock', {
               variant_id: item.variant.id,
               qty: item.quantity,
             })
+            if (stockErr) console.warn('decrement_stock falló:', stockErr.message)
           }
         }
 
@@ -238,7 +259,10 @@ export default function CheckoutPage() {
       }
     } catch (e) {
       console.error('Checkout error:', e)
-      toast.error('Error al procesar el pedido. Por favor contactanos por WhatsApp.')
+      const msg = e?.message || ''
+      toast.error(msg
+        ? `Error al procesar el pedido: ${msg}`
+        : 'Error al procesar el pedido. Contactanos por WhatsApp.')
     } finally {
       setSubmitting(false)
     }
