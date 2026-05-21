@@ -10,6 +10,25 @@ const SESSION_KEY = 'mlm_session_id'
 const PENDING_EVENTS_KEY = 'mlm_pending_events'
 const COOKIE_EXPIRY_DAYS = 365
 
+// Si las tablas de analytics no existen en la BD, desactivamos el módulo
+// durante la sesión para no llenar la consola de warnings ni gastar requests.
+let analyticsDisabled = false
+function disableAnalytics(reason) {
+  if (analyticsDisabled) return
+  analyticsDisabled = true
+  console.info('[analytics] desactivado:', reason)
+}
+function isFatalSchemaError(error) {
+  if (!error) return false
+  const msg = (error.message || '').toLowerCase()
+  return (
+    msg.includes('does not exist') ||
+    msg.includes('not find the table') ||
+    msg.includes('not find the column') ||
+    msg.includes('schema cache')
+  )
+}
+
 // ──────────────────────────────────────────────────────────────
 // ID Helpers
 // ──────────────────────────────────────────────────────────────
@@ -105,6 +124,7 @@ function clearPendingEvents() {
 // ──────────────────────────────────────────────────────────────
 
 async function createVisitorSession(sessionId) {
+  if (!supabase || analyticsDisabled) return
   const visitorId = getVisitorId()
   const sessionData = {
     id: sessionId,
@@ -115,21 +135,26 @@ async function createVisitorSession(sessionId) {
     device_info: getDeviceInfo(),
     referrer: document.referrer || null,
   }
-
-  if (supabase) {
+  try {
     const { error } = await supabase.from('visitor_sessions').upsert(sessionData)
-    if (error) console.warn('Analytics: session insert failed', error.message)
+    if (error && isFatalSchemaError(error)) disableAnalytics('tabla visitor_sessions no encontrada')
+  } catch {
+    // silencioso
   }
 }
 
 async function updateSession() {
+  if (!supabase || analyticsDisabled) return
   const sessionId = getSessionId()
-  if (!supabase) return
-  const { error } = await supabase
-    .from('visitor_sessions')
-    .update({ last_seen_at: new Date().toISOString() })
-    .eq('id', sessionId)
-  if (error) console.warn('Analytics: session update failed', error.message)
+  try {
+    const { error } = await supabase
+      .from('visitor_sessions')
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq('id', sessionId)
+    if (error && isFatalSchemaError(error)) disableAnalytics('tabla visitor_sessions no encontrada')
+  } catch {
+    // silencioso
+  }
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -149,20 +174,22 @@ export async function track(eventType, eventData = {}) {
     created_at: new Date().toISOString(),
   }
 
-  if (supabase) {
-    try {
-      const { error } = await supabase.from('analytics_events').insert(event)
-      if (error) {
-        console.warn('Analytics: event insert failed, saving locally', error.message)
-        savePendingEvent(event)
-      } else {
-        // Try to flush pending events
-        flushPendingEvents()
+  if (!supabase || analyticsDisabled) {
+    savePendingEvent(event)
+    return
+  }
+
+  try {
+    const { error } = await supabase.from('analytics_events').insert(event)
+    if (error) {
+      if (isFatalSchemaError(error)) {
+        disableAnalytics('tabla analytics_events no encontrada')
       }
-    } catch (e) {
       savePendingEvent(event)
+    } else {
+      flushPendingEvents()
     }
-  } else {
+  } catch {
     savePendingEvent(event)
   }
 }
@@ -172,13 +199,15 @@ export async function track(eventType, eventData = {}) {
 // ──────────────────────────────────────────────────────────────
 
 async function flushPendingEvents() {
-  if (!supabase) return
+  if (!supabase || analyticsDisabled) return
   const pending = getPendingEvents()
   if (pending.length === 0) return
-
-  const { error } = await supabase.from('analytics_events').insert(pending)
-  if (!error) {
-    clearPendingEvents()
+  try {
+    const { error } = await supabase.from('analytics_events').insert(pending)
+    if (!error) clearPendingEvents()
+    else if (isFatalSchemaError(error)) disableAnalytics('tabla analytics_events no encontrada')
+  } catch {
+    // silencioso
   }
 }
 

@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 
 export default function Header() {
   const { itemCount, toggleCart } = useCart()
-  const { user, role, logout, isAdmin } = useAuth()
+  const { user, role, loading: authLoading, logout, isAdmin } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -156,6 +156,9 @@ export default function Header() {
                   )}
                 </div>
               )
+            ) : authLoading ? (
+              // Sesión aún cargando: placeholder vacío para evitar parpadeo
+              <div className="hidden sm:block w-24 h-9" aria-hidden="true" />
             ) : (
               // Not logged in: login + signup buttons
               <div className="hidden sm:flex items-center gap-1">
