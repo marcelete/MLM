@@ -62,10 +62,10 @@ DROP POLICY IF EXISTS "Analytics - public write" ON analytics_events;
 CREATE POLICY "Analytics insert válido" ON analytics_events
   FOR INSERT
   WITH CHECK (
-    -- Requiere que el evento tenga al menos session_id y event_name
+    -- Requiere que el evento tenga al menos session_id y event_type
     session_id IS NOT NULL
-    AND event_name IS NOT NULL
-    AND length(event_name) <= 100
+    AND event_type IS NOT NULL
+    AND length(event_type) <= 100
   );
 
 -- ============================================================
