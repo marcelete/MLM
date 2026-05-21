@@ -121,7 +121,7 @@ export default function Sidebar({ onClose }) {
         )}
 
         <a
-          href="/"
+          href={`${import.meta.env.BASE_URL}#/`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/10 hover:text-white transition-colors"

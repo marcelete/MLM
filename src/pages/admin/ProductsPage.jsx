@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, Search, ToggleLeft, ToggleRight, Package } from 'lucide-react'
+import { Plus, Edit2, Trash2, Search, ToggleLeft, ToggleRight, Package, Upload, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { products as staticProducts, formatPrice } from '../../data/products'
+import { uploadProductImage } from '../../lib/storage'
 import toast from 'react-hot-toast'
 
 export default function ProductsPage() {
@@ -190,13 +191,45 @@ function ProductFormModal({ product, onClose, onSave }) {
     base_price: product?.base_price || '',
     active: product?.active !== false,
     featured: product?.featured || false,
-    images: product?.images?.join('\n') || '',
   })
+  const [images, setImages] = useState(product?.images || [])
+  const [urlInput, setUrlInput] = useState('')
+  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
     setForm((f) => ({ ...f, [name]: type === 'checkbox' ? checked : value }))
+  }
+
+  async function handleFileSelect(e) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    setUploading(true)
+    try {
+      for (const file of files) {
+        const url = await uploadProductImage(file)
+        setImages((arr) => [...arr, url])
+      }
+      toast.success(`${files.length} imagen(es) subida(s)`)
+    } catch (err) {
+      toast.error(err.message || 'Error al subir')
+    } finally {
+      setUploading(false)
+      e.target.value = '' // reset input
+    }
+  }
+
+  function addUrl() {
+    const url = urlInput.trim()
+    if (!url) return
+    if (!/^https?:\/\//.test(url)) { toast.error('Debe ser una URL http(s)'); return }
+    setImages((arr) => [...arr, url])
+    setUrlInput('')
+  }
+
+  function removeImage(i) {
+    setImages((arr) => arr.filter((_, idx) => idx !== i))
   }
 
   const handleSubmit = async (e) => {
@@ -210,7 +243,7 @@ function ProductFormModal({ product, onClose, onSave }) {
       base_price: Number(form.base_price),
       active: form.active,
       featured: form.featured,
-      images: form.images.split('\n').map((s) => s.trim()).filter(Boolean),
+      images,
     }
     try {
       if (isEdit) {
@@ -255,8 +288,44 @@ function ProductFormModal({ product, onClose, onSave }) {
             <input name="base_price" type="number" value={form.base_price} onChange={handleChange} required className="input-field" min="0" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Imágenes (una URL por línea)</label>
-            <textarea name="images" value={form.images} onChange={handleChange} rows={2} className="input-field resize-none text-xs" placeholder="https://..." />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Imágenes</label>
+
+            {images.length > 0 && (
+              <div className="grid grid-cols-4 gap-2 mb-2">
+                {images.map((url, i) => (
+                  <div key={i} className="relative group aspect-square">
+                    <img src={url} alt="" className="w-full h-full object-cover rounded-lg border border-gray-200" />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Quitar"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <label className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 cursor-pointer hover:border-brand-orange hover:bg-orange-50 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+              <Upload className="w-4 h-4" />
+              {uploading ? 'Subiendo...' : 'Subir foto desde la PC (JPG, PNG, WEBP)'}
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={handleFileSelect} className="hidden" disabled={uploading} />
+            </label>
+
+            <div className="flex gap-2 mt-2">
+              <input
+                type="url"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="...o pegar URL externa"
+                className="input-field flex-1 text-xs"
+              />
+              <button type="button" onClick={addUrl} className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
+                Agregar
+              </button>
+            </div>
           </div>
           <div className="flex gap-4">
             <label className="flex items-center gap-2 text-sm text-gray-700">

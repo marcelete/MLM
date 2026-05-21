@@ -13,6 +13,7 @@ import AccountPage from './pages/store/AccountPage'
 
 // Auth Pages
 import LoginPage from './pages/LoginPage'
+import NotFoundPage from './pages/NotFoundPage'
 
 // Admin Pages
 import DashboardPage from './pages/admin/DashboardPage'
@@ -174,8 +175,8 @@ export default function App() {
                 />
               </Route>
 
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
+              {/* 404 fallback */}
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </CartProvider>
         </AuthProvider>

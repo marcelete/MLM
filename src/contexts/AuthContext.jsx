@@ -138,6 +138,49 @@ export function AuthProvider({ children }) {
     }
   }
 
+  async function signup(email, password, name) {
+    if (isDemoMode) {
+      const users = initDemoUsers()
+      if (users.find((u) => u.email === email)) {
+        return { success: false, error: 'Ya existe una cuenta con ese email' }
+      }
+      const newUser = { id: String(users.length + 1), email, password, name, role: 'comprador' }
+      users.push(newUser)
+      localStorage.setItem('mlm_demo_users', JSON.stringify(users))
+      const { password: _pw, ...safeUser } = newUser
+      setUser(safeUser)
+      setRole(safeUser.role)
+      localStorage.setItem('mlm_current_user', JSON.stringify(safeUser))
+      return { success: true }
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name } },
+      })
+      if (error) {
+        const msg = error.message
+        if (/already|registered|exists/i.test(msg)) {
+          return { success: false, error: 'Ya existe una cuenta con ese email' }
+        }
+        if (/password/i.test(msg)) {
+          return { success: false, error: 'La contraseña no cumple los requisitos (mínimo 6 caracteres)' }
+        }
+        return { success: false, error: msg }
+      }
+      if (data.session && data.user) {
+        try { await loadSupabaseProfile(data.user) } catch {}
+        return { success: true, needsConfirmation: false }
+      }
+      return { success: true, needsConfirmation: true }
+    } catch (e) {
+      console.error('AuthContext: signUp threw', e)
+      return { success: false, error: 'No se pudo conectar al servidor. Reintentá en unos segundos.' }
+    }
+  }
+
   async function logout() {
     if (isDemoMode) {
       setUser(null)
@@ -159,7 +202,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, login, logout, isAdmin, isSuperAdmin, isDemoMode }}>
+    <AuthContext.Provider value={{ user, role, loading, login, signup, logout, isAdmin, isSuperAdmin, isDemoMode }}>
       {children}
     </AuthContext.Provider>
   )

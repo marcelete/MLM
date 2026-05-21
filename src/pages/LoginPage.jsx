@@ -1,19 +1,27 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { Package2, Eye, EyeOff, AlertCircle, ChevronDown, Info } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import toast from 'react-hot-toast'
 
 export default function LoginPage() {
+  const [mode, setMode] = useState('login') // 'login' | 'signup'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
   const [showDemo, setShowDemo] = useState(false)
 
-  const { login, user, role, loading, isDemoMode } = useAuth()
+  const { login, signup, user, role, loading, isDemoMode } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  useEffect(() => {
+    if (searchParams.get('mode') === 'signup') setMode('signup')
+  }, [searchParams])
 
   useEffect(() => {
     if (!loading && user) {
@@ -25,20 +33,39 @@ export default function LoginPage() {
     }
   }, [user, role, loading])
 
+  const switchMode = (m) => {
+    setMode(m)
+    setError('')
+    setInfo('')
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setInfo('')
     if (!email || !password) {
       setError('Completá email y contraseña')
       return
     }
+    if (mode === 'signup' && !name.trim()) {
+      setError('Ingresá tu nombre')
+      return
+    }
+    if (mode === 'signup' && password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres')
+      return
+    }
     setSubmitting(true)
-    const result = await login(email, password)
+    const result = mode === 'login'
+      ? await login(email, password)
+      : await signup(email, password, name.trim())
     setSubmitting(false)
     if (!result.success) {
       setError(result.error)
+    } else if (mode === 'signup' && result.needsConfirmation) {
+      setInfo('¡Cuenta creada! Revisá tu email para confirmar la dirección antes de iniciar sesión.')
     } else {
-      toast.success('Bienvenido/a')
+      toast.success(mode === 'login' ? 'Bienvenido/a' : '¡Bienvenido/a a MLM!')
     }
   }
 
@@ -68,7 +95,23 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Iniciar sesión</h2>
+          {/* Tabs */}
+          <div className="grid grid-cols-2 gap-1 bg-gray-100 rounded-lg p-1 mb-6">
+            <button
+              type="button"
+              onClick={() => switchMode('login')}
+              className={`py-2 rounded-md text-sm font-semibold transition-colors ${mode === 'login' ? 'bg-white text-brand-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Iniciar sesión
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode('signup')}
+              className={`py-2 rounded-md text-sm font-semibold transition-colors ${mode === 'signup' ? 'bg-white text-brand-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Crear cuenta
+            </button>
+          </div>
 
           {error && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4 text-sm">
@@ -77,7 +120,28 @@ export default function LoginPage() {
             </div>
           )}
 
+          {info && (
+            <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 mb-4 text-sm">
+              <Info className="w-4 h-4 flex-shrink-0" />
+              {info}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === 'signup' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent transition"
+                  placeholder="Juan Pérez"
+                  autoComplete="name"
+                />
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input
@@ -91,7 +155,9 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Contraseña {mode === 'signup' && <span className="text-xs font-normal text-gray-400">(mínimo 6 caracteres)</span>}
+              </label>
               <div className="relative">
                 <input
                   type={showPass ? 'text' : 'password'}
@@ -99,7 +165,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-2.5 pr-10 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent transition"
                   placeholder="••••••••"
-                  autoComplete="current-password"
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 />
                 <button
                   type="button"
@@ -117,7 +183,9 @@ export default function LoginPage() {
               className="w-full bg-brand-orange hover:bg-brand-orangeDark disabled:opacity-60 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-2"
             >
               {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              {submitting ? 'Ingresando...' : 'Iniciar sesión'}
+              {submitting
+                ? (mode === 'login' ? 'Ingresando...' : 'Creando cuenta...')
+                : (mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta')}
             </button>
           </form>
 

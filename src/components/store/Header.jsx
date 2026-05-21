@@ -157,14 +157,22 @@ export default function Header() {
                 </div>
               )
             ) : (
-              // Not logged in: login button
-              <Link
-                to="/login"
-                className="hidden sm:flex items-center gap-1.5 text-sm text-gray-200 hover:text-white hover:bg-white/10 px-3 py-2 rounded-lg transition-colors font-medium"
-              >
-                <User className="w-4 h-4" />
-                <span className="hidden md:inline">Iniciar sesión</span>
-              </Link>
+              // Not logged in: login + signup buttons
+              <div className="hidden sm:flex items-center gap-1">
+                <Link
+                  to="/login"
+                  className="flex items-center gap-1.5 text-sm text-gray-200 hover:text-white hover:bg-white/10 px-3 py-2 rounded-lg transition-colors font-medium"
+                >
+                  <User className="w-4 h-4" />
+                  <span className="hidden md:inline">Ingresar</span>
+                </Link>
+                <Link
+                  to="/login?mode=signup"
+                  className="hidden md:inline-flex items-center gap-1.5 text-sm border border-white/30 text-white hover:bg-white/10 px-3 py-2 rounded-lg transition-colors font-medium"
+                >
+                  Crear cuenta
+                </Link>
+              </div>
             )}
 
             {/* Cart button */}
